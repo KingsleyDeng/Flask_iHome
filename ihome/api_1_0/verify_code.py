@@ -34,11 +34,14 @@ def get_image_code(image_code_id):
     # redis_store.expire("image_code_%s" % image_code_id, constants.IMAGE_CODE_REDIS_EXPIRES)
     # 将两步融合成一步  设置值 设置有效期
     try:
+        # redis_store.set("image_code_%s" % image_code_id, text)
+        # redis_store.expire("image_code_%s" % image_code_id, constants.IMAGE_CODE_REDIS_EXPIRES)
         redis_store.setex("image_code_%s" % image_code_id, constants.IMAGE_CODE_REDIS_EXPIRES, text)
+        print("-----------------------", text)
     except Exception as e:
         # 捕获异常 记录日志
         current_app.logger.error(e)
-        # return jsonify(errno=RET.DBERR, errmsg="保存图片验证码失败")
+        return jsonify(errno=RET.DBERR, errmsg="保存图片验证码失败")
 
     # 返回图片
     resp = make_response(image_data)
