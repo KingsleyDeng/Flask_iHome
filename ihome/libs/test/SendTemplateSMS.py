@@ -1,6 +1,8 @@
 # coding=utf-8
 import ssl
 
+from flask import logging
+
 ssl._create_default_https_context = ssl._create_unverified_context  # 全局取消证书验证
 
 from CCPRestSDK import REST
@@ -31,32 +33,38 @@ softVersion = '2013-12-26'
 # @param $tempId 模板Id
 
 class CCP(object):
-    """自己封装的用于发送短信的辅助类"""
-    # 用来保存对象的类属性
-    instance = None
 
-    def __new__(cls):
-        # 判断ccp类有没有已经创建好的对象，如果没有创建一个对象并保存
-        if cls.instance is None:
-            obj = super(CCP, cls).__new__(cls)
-            # 初始化REST SDK
-            obj.rest = REST(serverIP, serverPort, softVersion)
-            obj.rest.setAccount(accountSid, accountToken)
-            obj.rest.setAppId(appId)
-            cls.instance = obj
-        return cls.instance
-        # 如果有 则 将保存的对象直接返回
+    def __init__(self):
+        self.rest = REST(serverIP, serverPort, softVersion)
+        self.rest.setAccount(accountSid, accountToken)
+        self.rest.setAppId(appId)
 
-    def send_template_sms(self, to, datas, temp_id):
-        result = self.rest.sendTemplateSMS(to, datas, temp_id)
-        for k, v in result.items():
-            if k == 'templateSMS':
-                for k, s in v.items():
-                    print('%s:%s' % (k, s))
-            else:
-                print('%s:%s' % (k, v))
+    @staticmethod
+    def instance():
+        if not hasattr(CCP, "_instance"):
+            CCP._instance = CCP()
+        return CCP._instance
 
-
-if __name__ == '__main__':
-    ccp = CCP()
-    ccp.send_template_sms("13037136525", ["1234", "5"], 1)
+    def sendTemplateSMS(self, to, datas, tempId):
+        try:
+            result = self.rest.sendTemplateSMS(to, datas, tempId)
+        except Exception as e:
+            logging.error(e)
+            raise e
+        # print result
+        # for k, v in result.iteritems():
+        #     if k == 'templateSMS':
+        #         for k, s in v.iteritems():
+        #             print '%s:%s' % (k, s)
+        #     else:
+        #         print '%s:%s' % (k, v)
+        success = "<statusCode>000000</statusCode>"
+        if success in result:
+            return True
+        else:
+            return False
+ccp = CCP.instance()
+if __name__ == "__main__":
+    ccp = CCP.instance()
+    res = ccp.sendTemplateSMS("185xxxxxxxx", ["1234", 5], 1)
+    print(res)

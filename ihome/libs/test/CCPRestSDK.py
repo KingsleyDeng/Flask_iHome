@@ -10,11 +10,11 @@
 #  in the file PATENTS.  All contributing project authors may
 #  be found in the AUTHORS file in the root of the source tree.
 
-# import md5
-import hashlib
+from hashlib import md5
 import base64
 import datetime
-import urllib.request as urlre
+import urllib.request
+import requests
 import json
 from xmltojson import xmltojson
 from xml.dom import minidom
@@ -27,7 +27,7 @@ class REST:
     SubAccountSid = ''
     SubAccountToken = ''
     ServerIP = ''
-    ServerPort =''
+    ServerPort = ''
     SoftVersion = ''
     Iflog = True  # 是否打印日志
     Batch = ''  # 时间戳
@@ -39,17 +39,17 @@ class REST:
     # @param softVersion    必选参数    REST版本号
     def __init__(self, ServerIP, ServerPort, SoftVersion):
 
-        self.ServerIP = ServerIP;
-        self.ServerPort = ServerPort;
-        self.SoftVersion = SoftVersion;
+        self.ServerIP = ServerIP
+        self.ServerPort = ServerPort
+        self.SoftVersion = SoftVersion
 
     # 设置主帐号
     # @param AccountSid  必选参数    主帐号
     # @param AccountToken  必选参数    主帐号Token
 
     def setAccount(self, AccountSid, AccountToken):
-        self.AccountSid = AccountSid;
-        self.AccountToken = AccountToken;
+        self.AccountSid = AccountSid
+        self.AccountToken = AccountToken
 
         # 设置子帐号
 
@@ -58,8 +58,8 @@ class REST:
     # @param SubAccountToken  必选参数    子帐号Token
 
     def setSubAccount(self, SubAccountSid, SubAccountToken):
-        self.SubAccountSid = SubAccountSid;
-        self.SubAccountToken = SubAccountToken;
+        self.SubAccountSid = SubAccountSid
+        self.SubAccountToken = SubAccountToken
 
         # 设置应用ID
 
@@ -67,15 +67,15 @@ class REST:
     # @param AppId  必选参数    应用ID
 
     def setAppId(self, AppId):
-        self.AppId = AppId;
+        self.AppId = AppId
 
     def log(self, url, body, data):
         print('这是请求的URL：')
-        print(url);
+        print(url)
         print('这是请求包体:')
-        print(body);
+        print(body)
         print('这是响应包体:')
-        print(data);
+        print(data)
         print('********************************')
 
     # 创建子账号
@@ -86,15 +86,14 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        # sig = hashlib.new(signature).hexdigest().upper()
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/SubAccounts?sig=" + sig
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
         req.add_header("Authorization", auth)
         # xml格式
@@ -107,23 +106,25 @@ class REST:
             # json格式
             body = '''{"friendlyName": "%s", "appId": "%s"}''' % (friendlyName, self.AppId)
         data = ''
-        req.data(body)
+        req.data = body
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
-            res.close()
-
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.post(url, headers=req.headers, data=req.data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -137,14 +138,14 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/GetSubAccounts?sig=" + sig
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
         req.add_header("Authorization", auth)
         # xml格式
@@ -157,23 +158,23 @@ class REST:
             # json格式
             body = '''{"appId": "%s", "startNo": "%s", "offset": "%s"}''' % (self.AppId, startNo, offset)
         data = ''
-        req.data(body)
+        req.data = body
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
-            res.close()
+            res = requests.get(url, headers=req.headers)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
 
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -187,14 +188,14 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/QuerySubAccountByName?sig=" + sig
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
 
         req.add_header("Authorization", auth)
@@ -207,23 +208,26 @@ class REST:
         if self.BodyType == 'json':
             body = '''{"friendlyName": "%s", "appId": "%s"}''' % (friendlyName, self.AppId)
         data = ''
-        req.data(body)
+        req.data = body
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
-            res.close()
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.get(url, headers=req.headers, data=req.data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
 
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -238,16 +242,17 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/SMS/TemplateSMS?sig=" + sig
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(b'src').strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
         req.add_header("Authorization", auth)
+        #print(req.headers)      #组装请求头
         # 创建包体
         b = ''
         for a in datas:
@@ -264,23 +269,31 @@ class REST:
             b += ']'
             body = '''{"to": "%s", "datas": %s, "templateId": "%s", "appId": "%s"}''' % (to, b, tempId, self.AppId)
         req.data = body
+        #print(req.data)    #组装请求体
+        #确认请求体和请求头
+        req_headers = req.headers
+        req_data = req.data
+        # print(req_headers,req_data)
+        # print("_______"*20)
         data = ''
         try:
-            res =urlre.urlopen(req);
-            data = res.read()
-            res.close()
-
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # res = urllib.request.urlopen(req)
+            res = requests.post(url, headers=req_headers, data=req_data)
+            # print(res.status_code,res.content,res.text,)
+            data = res.text
+            # data = res.read()
+            # res.close()
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -306,14 +319,14 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/Calls/LandingCalls?sig=" + sig
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
         req.add_header("Authorization", auth)
 
@@ -323,30 +336,33 @@ class REST:
             <playTimes>%s</playTimes><respUrl>%s</respUrl><userData>%s</userData><maxCallTime>%s</maxCallTime><speed>%s</speed>
             <volume>%s</volume><pitch>%s</pitch><bgsound>%s</bgsound></LandingCall>\
             ''' % (
-        to, mediaName, mediaTxt, self.AppId, displayNum, playTimes, respUrl, userData, maxCallTime, speed, volume,
-        pitch, bgsound)
-        if self.BodyType == 'json':
-            body = '''{"to": "%s", "mediaName": "%s","mediaTxt": "%s","appId": "%s","displayNum": "%s","playTimes": "%s","respUrl": "%s","userData": "%s","maxCallTime": "%s","speed": "%s","volume": "%s","pitch": "%s","bgsound": "%s"}''' % (
             to, mediaName, mediaTxt, self.AppId, displayNum, playTimes, respUrl, userData, maxCallTime, speed, volume,
             pitch, bgsound)
+        if self.BodyType == 'json':
+            body = '''{"to": "%s", "mediaName": "%s","mediaTxt": "%s","appId": "%s","displayNum": "%s","playTimes": "%s","respUrl": "%s","userData": "%s","maxCallTime": "%s","speed": "%s","volume": "%s","pitch": "%s","bgsound": "%s"}''' % (
+                to, mediaName, mediaTxt, self.AppId, displayNum, playTimes, respUrl, userData, maxCallTime, speed, volume,
+                pitch, bgsound)
         req.data = body
         data = ''
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
-            res.close()
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.post(url, headers=req.headers, data=req.data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
 
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -366,15 +382,14 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode('utf-8')).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/Calls/VoiceVerify?sig=" + sig
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        auth = base64.encodestring()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
 
         req.add_header("Authorization", auth)
@@ -385,27 +400,29 @@ class REST:
             <displayNum>%s</displayNum><lang>%s</lang><userData>%s</userData></VoiceVerify>\
             ''' % (self.AppId, verifyCode, playTimes, to, respUrl, displayNum, lang, userData)
         if self.BodyType == 'json':
-            # if this model is Json ..then do next code 
+            # if this model is Json ..then do next code
             body = '''{"appId": "%s", "verifyCode": "%s","playTimes": "%s","to": "%s","respUrl": "%s","displayNum": "%s","lang": "%s","userData": "%s"}''' % (
-            self.AppId, verifyCode, playTimes, to, respUrl, displayNum, lang, userData)
-        req.data=body
+                self.AppId, verifyCode, playTimes, to, respUrl, displayNum, lang, userData)
+        req.data = body
         data = ''
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
-            res.close()
-
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.post(url, headers=req.headers, data=req.data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -421,14 +438,14 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/ivr/dial?sig=" + sig
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         req.add_header("Accept", "application/xml")
         req.add_header("Content-Type", "application/xml;charset=utf-8")
         req.add_header("Authorization", auth)
@@ -440,18 +457,21 @@ class REST:
                     <Dial number="%s"  userdata="%s" record="%s"></Dial>
                 </Request>
             ''' % (self.AppId, number, userdata, record)
-        req.data=body
+        req.data = body
         data = ''
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
-            res.close()
-            xtj = xmltojson()
-            locations = xtj.main(data)
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.post(url, headers=req.headers, data=req.data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
+            # xtj = xmltojson()
+            # locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -465,14 +485,14 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/BillRecords?sig=" + sig
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
         req.add_header("Authorization", auth)
 
@@ -482,27 +502,29 @@ class REST:
             </BillRecords>\
             ''' % (self.AppId, date, keywords)
         if self.BodyType == 'json':
-            # if this model is Json ..then do next code 
+            # if this model is Json ..then do next code
             body = '''{"appId": "%s", "date": "%s","keywords": "%s"}''' % (self.AppId, date, keywords)
-        req.data=body
+        req.data = body
         data = ''
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.post(url, headers=req.headers, data=req.data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
 
-            res.close()
-
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -515,40 +537,42 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/AccountInfo?sig=" + sig
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
         body = ''
         req.add_header("Authorization", auth)
         data = ''
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
-            res.close()
-
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.post(url, headers=req.headers, data=req.data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
 
     # 短信模板查询
-    # @param templateId  必选参数   模板Id，不带此参数查询全部可用模板 
+    # @param templateId  必选参数   模板Id，不带此参数查询全部可用模板
 
     def QuerySMSTemplate(self, templateId):
 
@@ -556,14 +580,14 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/SMS/QuerySMSTemplate?sig=" + sig
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
 
         req.add_header("Authorization", auth)
@@ -573,26 +597,28 @@ class REST:
             <appId>%s</appId><templateId>%s</templateId></Request>
             ''' % (self.AppId, templateId)
         if self.BodyType == 'json':
-            # if this model is Json ..then do next code 
+            # if this model is Json ..then do next code
             body = '''{"appId": "%s", "templateId": "%s"}''' % (self.AppId, templateId)
-        req.data=body
+        req.data = body
         data = ''
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
-            res.close()
-
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main2(data)
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.post(url, headers=req.headers, data=req.data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main2(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -606,55 +632,58 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/CallResult?sig=" + sig + "&callsid=" + callSid
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
         body = ''
         req.add_header("Authorization", auth)
         data = ''
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
-            res.close()
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.post(url, headers=req_headers, data=req_data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
 
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
 
     # 呼叫状态查询
     # @param callid   必选参数    一个由32个字符组成的电话唯一标识符
-    # @param action      可选参数     查询结果通知的回调url地址 
+    # @param action      可选参数     查询结果通知的回调url地址
     def QueryCallState(self, callid, action):
 
         self.accAuth()
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.new(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/ivr/call?sig=" + sig + "&callid=" + callid
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         self.setHttpHeader(req)
         req.add_header("Authorization", auth)
 
@@ -664,27 +693,29 @@ class REST:
             </Request>\
             ''' % (self.AppId, callid, action)
         if self.BodyType == 'json':
-            # if this model is Json ..then do next code 
+            # if this model is Json ..then do next code
             body = '''{"Appid":"%s","QueryCallState":{"callid":"%s","action":"%s"}}''' % (self.AppId, callid, action)
-        req.data=body
+        req.data = body
         data = ''
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.post(url, headers=req.headers, data=req.data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
 
-            res.close()
-
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -698,14 +729,14 @@ class REST:
         nowdate = datetime.datetime.now()
         self.Batch = nowdate.strftime("%Y%m%d%H%M%S")
         # 生成sig
-        signature = self.AccountSid + self.AccountToken + self.Batch;
-        sig = hashlib.md5(signature.encode("utf-8")).hexdigest().upper()
+        signature = self.AccountSid + self.AccountToken + self.Batch
+        sig = md5(signature.encode()).hexdigest().upper()
         # 拼接URL
         url = "https://" + self.ServerIP + ":" + self.ServerPort + "/" + self.SoftVersion + "/Accounts/" + self.AccountSid + "/Calls/MediaFileUpload?sig=" + sig + "&appid=" + self.AppId + "&filename=" + filename
         # 生成auth
-        src = self.AccountSid + ":" + self.Batch;
-        auth = base64.encodestring(src).strip()
-        req = urlre.Request(url)
+        src = self.AccountSid + ":" + self.Batch
+        auth = base64.encodestring(src.encode()).strip().decode()
+        req = urllib.request.Request(url)
         req.add_header("Authorization", auth)
         if self.BodyType == 'json':
             req.add_header("Accept", "application/json")
@@ -716,25 +747,26 @@ class REST:
             req.add_header("Content-Type", "application/octet-stream")
 
         # 创建包体
-        req.data=body
+        req.data = body
 
         try:
-            res = urlre.urlopen(req);
-            data = res.read()
-
-            res.close()
-
-            if self.BodyType == 'json':
-                # json格式
-                locations = json.loads(data)
-            else:
-                # xml格式
-                xtj = xmltojson()
-                locations = xtj.main(data)
+            # res = urllib.request.urlopen(req)
+            # data = res.read()
+            # res.close()
+            res = requests.post(url, headers=req.headers, data=req.data)
+            #print(res.status_code, res.content, res.text, )
+            data = res.text
+            # if self.BodyType == 'json':
+            #     # json格式
+            #     locations = json.loads(data)
+            # else:
+            #     # xml格式
+            #     xtj = xmltojson()
+            #     locations = xtj.main(data)
             if self.Iflog:
                 self.log(url, body, data)
-            return locations
-        except Exception as e:
+            return data
+        except Exception as error:
             if self.Iflog:
                 self.log(url, body, data)
             return {'172001': '网络错误'}
@@ -742,54 +774,54 @@ class REST:
     # 子帐号鉴权
     def subAuth(self):
         if (self.ServerIP == ""):
-            print('172004');
-            print('IP为空');
+            print('172004')
+            print('IP为空')
 
         if (self.ServerPort <= 0):
-            print('172005');
-            print('端口错误（小于等于0）');
+            print('172005')
+            print('端口错误（小于等于0）')
 
         if (self.SoftVersion == ""):
-            print('172013');
-            print('版本号为空');
+            print('172013')
+            print('版本号为空')
 
         if (self.SubAccountSid == ""):
-            print('172008');
-            print('子帐号为空');
+            print('172008')
+            print('子帐号为空')
 
         if (self.SubAccountToken == ""):
-            print('172009');
-            print('子帐号令牌为空');
+            print('172009')
+            print('子帐号令牌为空')
 
         if (self.AppId == ""):
-            print('172012');
-            print('应用ID为空');
+            print('172012')
+            print('应用ID为空')
 
     # 主帐号鉴权
     def accAuth(self):
         if (self.ServerIP == ""):
-            print('172004');
-            print('IP为空');
+            print('172004')
+            print('IP为空')
 
         if (int(self.ServerPort) <= 0):
-            print('172005');
-            print('端口错误（小于等于0）');
+            print('172005')
+            print('端口错误（小于等于0）')
 
         if (self.SoftVersion == ""):
-            print('172013');
-            print('版本号为空');
+            print('172013')
+            print('版本号为空')
 
         if (self.AccountSid == ""):
-            print('172006');
-            print('主帐号为空');
+            print('172006')
+            print('主帐号为空')
 
         if (self.AccountToken == ""):
-            print('172007');
-            print('主帐号令牌为空');
+            print('172007')
+            print('主帐号令牌为空')
 
         if (self.AppId == ""):
-            print('172012');
-            print('应用ID为空');
+            print('172012')
+            print('应用ID为空')
 
     # 设置包头
     def setHttpHeader(self, req):

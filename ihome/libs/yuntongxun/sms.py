@@ -1,6 +1,6 @@
 # coding=utf-8
 
-from CCPRestSDK import REST
+from ihome.libs.yuntongxun.CCPRestSDK import REST
 
 # import ConfigParser
 
@@ -50,17 +50,20 @@ class CCP(object):
 
     def send_Template_sms(self, to, datas, temp_Id):
         # 初始化REST SDK
-
         result = self.rest.sendTemplateSMS(to, datas, temp_Id)
-        for k, v in result.items():
-
-            if k == 'templateSMS':
-                for k, s in v.items():
-                    print('%s:%s' % (k, s))
-            else:
-                print('%s:%s' % (k, v))
-
-                # sendTemplateSMS(手机号码,内容数据,模板Id)
+        # for k, v in result.items():
+        #
+        #     if k == 'templateSMS':
+        #         for k, s in v.items():
+        #             print('%s:%s' % (k, s))
+        #     else:
+        #         print('%s:%s' % (k, v))
+        status_code = result.get("statusCode")
+        if status_code == "000000":
+            # 表示发送成功
+            return 0
+        else:
+            return -1
 
 
 if __name__ == "__main__":
@@ -68,6 +71,5 @@ if __name__ == "__main__":
     # 1代表模板ID，下载SDK的官网api文档有说明
     # 这里填测试号码 免费发送短信  填的不是测试号码收短信费用
     ret = ccp.send_Template_sms("13037136525", ["1234", "5"], 1)
-
     print(ret)
 
