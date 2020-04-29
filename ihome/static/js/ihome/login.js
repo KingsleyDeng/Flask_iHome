@@ -24,5 +24,30 @@ $(document).ready(function() {
             $("#password-err").show();
             return;
         }
+        // 将表单数据存放到对象data中
+        var data = {
+            mobile: mobile,
+            password : passwd
+        };
+        var jsonData = JSON.stringify(data);
+
+        $.ajax({
+            url: "/api/v1.0/sessions",
+            type: "post",
+            data: jsonData,
+            contentType: "application/json",
+            dataType: "json",
+            headers: {
+                "X-CSRFToken": getCookie("csrf_token")
+            },
+            success: function () {
+                if (data.errno == "0"){
+                    location.href = "/"
+                }else {
+                    $("#password-err span").html(data.errmsg);
+                    $("#password-err").show()
+                }
+            }
+        })
     });
 })
