@@ -35,6 +35,53 @@ $(document).ready(function () {
                 }
             }
         })
+    });
+
+    // 在页面加载时向后端查询用户的信息
+    $.get("/api/v1.0/user", function (resp) {
+        // 用户未登录
+        if ("4101" == resp.errno) {
+            location.href = "/login.html";
+        } else if ("0" == resp.errno) {
+            // 查询到用户信息
+            $("#user-name").val(resp.data.name);
+            if (resp.data.avatar) {
+                $("#user-avatar").attr("src", resp.data.avatar);
+            }
+        }
+
+    }, "json");
+
+
+    $("#form-name").submit(function (e) {
+        e.preventDefault();
+        // 获取参数
+        var name = $("#user-name").val()
+
+        if (!name) {
+            alert(" 请填写用户名 ！")
+            return;
+        }
+        $.ajax({
+            url: "/api/v1.0/users/name",
+            type: "PUT",
+            data: JSON.stringify({name: name}),
+            contentType: "application/json",
+            dataType: "json",
+            headers: {
+                "X-CSRFTOKEN": getCookie("csrf_token")
+            },
+            success: function (data) {
+                if ("0" == data.errno) {
+                    $(".error-msg").hide();
+                    showSuccessMsg();
+                } else if ("4001" == data.errno) {
+                    $(".error-msg").show();
+                } else if ("4101" == data.errno) {
+                    location.href = "/login.html";
+                }
+            }
+        });
     })
 
 })
