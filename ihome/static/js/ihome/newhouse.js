@@ -43,19 +43,19 @@ $(document).ready(function () {
 
         // 向后端发送请求
         $.ajax({
-            url : "/api/v1.0/houses/info",
+            url: "/api/v1.0/houses/info",
             type: "post",
             contentType: "application/json",
             data: JSON.stringify(data),
-            dataType:"json",
-            headers:{
-                "X-CSRFToken":getCookie("csrf_token")
+            dataType: "json",
+            headers: {
+                "X-CSRFToken": getCookie("csrf_token")
             },
-            success:function (resp) {
-                if (resp.errno=="4101"){
+            success: function (resp) {
+                if (resp.errno == "4101") {
                     //    用户未登录
                     location.href = "/login.html";
-                } else if (resp.errno=="0"){
+                } else if (resp.errno == "0") {
                     // 隐藏表单信息
                     $("#form-house-info").hide();
                     // 显示图片表单
@@ -66,11 +66,31 @@ $(document).ready(function () {
                     alert(resp.errmsg);
                 }
             }
-            
+
         })
+    });
 
-
+    $("#form-house-image").submit(function (e) {
+        e.preventDefault();
+        $(this).ajaxSubmit({
+            url: "/api/v1.0/houses/image",
+            type: "post",
+            dataType: "json",
+            headers: {
+                "X-CSRFToken": getCookie("csrf-token")
+            },
+            success: function (resp) {
+                if (resp.errno == "4101") {
+                    location.href = "/login.html";
+                } else if (resp.errno == "0") {
+                    $(".house-image-cons").append('<img src="' + resp.data.image_url + '">');
+                } else {
+                    alert(resp.errmsg);
+                }
+            }
+        })
     })
+
 
 })
 
